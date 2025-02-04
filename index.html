@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Public research paper and article archive</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Set worker path for PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
 </head>
 <body>
     <div class="container">
@@ -14,11 +19,24 @@
         
         <div class="search-container">
             <input type="text" id="search-input" placeholder="Enter DOI or paper title..." aria-label="Search for papers">
-            <button id="download-btn">download pdf</button>
+            <div class="button-group">
+                <button id="download-btn">Download PDF</button>
+                <button id="show-btn">Show PDF</button>
+            </div>
         </div>
 
         <div id="loading" class="loading hidden">
             <div class="spinner"></div>
+        </div>
+
+        <div id="pdf-container" class="hidden">
+            <div id="pdf-controls">
+                <button id="prev-page">Previous</button>
+                <span id="page-info">Page <span id="page-num"></span> of <span id="page-count"></span></span>
+                <button id="next-page">Next</button>
+                <button id="close-pdf">Close</button>
+            </div>
+            <canvas id="pdf-canvas"></canvas>
         </div>
     </div>
     <script src="script.js"></script>

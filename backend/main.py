@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from datetime import datetime
 import tempfile
 import os
 import re
@@ -36,8 +37,12 @@ def is_doi(query: str) -> bool:
 async def check_mirrors():
     """Check status of all Sci-Hub mirrors."""
     try:
-        results = wrapper.check_mirrors()
-        return {"mirrors": results}
+        results = await wrapper.check_mirrors_async()
+        return {
+            "mirrors": results,
+            "cached": not wrapper._should_refresh_cache(),
+            "timestamp": datetime.now().isoformat()
+        }
     except Exception as e:
         raise HTTPException(
             status_code=500,

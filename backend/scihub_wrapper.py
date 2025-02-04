@@ -5,7 +5,11 @@ import tempfile
 import os
 import logging
 import time
+import asyncio
+import aiohttp
+from datetime import datetime, timedelta
 from urllib.parse import urljoin, urlparse
+from functools import lru_cache
 
 SCIHUB_URLS = [
     'https://sci-hub.ru',     # Primary mirror
@@ -28,31 +32,68 @@ class SciHubWrapper:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
         
-    def check_mirrors(self):
-        """Check all mirrors and return their status."""
-        results = []
-        for url in SCIHUB_URLS:
-            try:
-                start_time = time.time()
-                response = self.sess.get(url, timeout=5)
+    async def _check_mirror(self, session, url):
+        """Check a single mirror asynchronously."""
+        try:
+            start_time = time.time()
+            async with session.get(url, timeout=5) as response:
                 elapsed = time.time() - start_time
-                
-                status = {
+                return {
                     'url': url,
-                    'status': response.status_code,
-                    'working': response.status_code == 200,
+                    'status': response.status,
+                    'working': response.status == 200,
                     'response_time': round(elapsed * 1000, 2)  # in milliseconds
                 }
-            except Exception as e:
-                status = {
-                    'url': url,
-                    'status': 0,
-                    'working': False,
-                    'error': str(e)
-                }
-            results.append(status)
-            logging.info(f"Mirror {url}: {'✓' if status.get('working') else '✗'} - {status.get('response_time', 'N/A')}ms")
-        return results
+        except Exception as e:
+            return {
+                'url': url,
+                'status': 0,
+                'working': False,
+                'error': str(e)
+            }
+
+    @lru_cache(maxsize=1)
+    def _get_cached_results(self):
+        """Get cached results with timestamp."""
+        return [], datetime.now()
+
+    def _should_refresh_cache(self):
+        """Check if cache should be refreshed (older than 5 minutes)."""
+        results, timestamp = self._get_cached_results()
+        return not results or datetime.now() - timestamp > timedelta(minutes=5)
+
+    async def check_mirrors_async(self):
+        """Check all mirrors concurrently and return their status."""
+        if not self._should_refresh_cache():
+            results, _ = self._get_cached_results()
+            logging.info("Returning cached mirror status")
+            return results
+
+        async with aiohttp.ClientSession() as session:
+            tasks = [self._check_mirror(session, url) for url in SCIHUB_URLS]
+            results = await asyncio.gather(*tasks)
+            
+            # Sort by working status and response time
+            results.sort(key=lambda x: (-x['working'], x.get('response_time', float('inf'))))
+            
+            # Update cache
+            self._get_cached_results.cache_clear()
+            self._get_cached_results.cache_info()
+            self._get_cached_results.cache_parameters()
+            self._get_cached_results()
+            
+            # Log results
+            for status in results:
+                logging.info(
+                    f"Mirror {status['url']}: {'✓' if status['working'] else '✗'} - "
+                    f"{status.get('response_time', 'N/A')}ms"
+                )
+            
+            return results
+
+    def check_mirrors(self):
+        """Synchronous wrapper for check_mirrors_async."""
+        return asyncio.run(self.check_mirrors_async())
 
     def _get_working_url(self):
         """Try different Sci-Hub URLs to find a working one."""

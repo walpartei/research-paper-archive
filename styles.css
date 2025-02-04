@@ -101,7 +101,56 @@ button:hover {
         flex-direction: column;
     }
     
+    .button-group {
+        flex-direction: column;
+    }
+    
     button {
         width: 100%;
     }
+
+    #pdf-controls {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+#pdf-container {
+    margin-top: 20px;
+    background: #f5f5f5;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#pdf-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#page-info {
+    font-size: 14px;
+    color: #666;
+}
+
+#pdf-canvas {
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    display: block;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
