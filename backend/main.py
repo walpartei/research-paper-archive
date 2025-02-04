@@ -4,30 +4,22 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import tempfile
 import os
-from scidownl import scihub_download
 import re
+from scihub_wrapper import SciHubWrapper
 
 app = FastAPI()
 
 # Enable CORS for the frontend
-# Configure CORS for both local development and production
-origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-]
-
-# Add Vercel URL if available
-vercel_url = os.getenv('VERCEL_URL')
-if vercel_url:
-    origins.append(f"https://{vercel_url}")
+# Get the Vercel URL from environment or default to localhost
+FRONTEND_URL = os.getenv('VERCEL_URL', 'http://localhost:3000')
+if FRONTEND_URL.startswith('http://') is False and FRONTEND_URL.startswith('https://') is False:
+    FRONTEND_URL = f'https://{FRONTEND_URL}'
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -52,13 +44,15 @@ async def download_paper(request: SearchRequest):
         paper_type = "doi" if is_doi(query) else "title"
         
         try:
-            # Clean DOI if present
-            if paper_type == 'doi':
-                query = re.sub(r'^(?:DOI:?\s*)?(.+)$', r'\1', query)
-
+            # Initialize wrapper
+            wrapper = SciHubWrapper()
+            
             # Download the paper
-            scihub_download(query, paper_type=paper_type, out=output_file)
+            wrapper.download(query, output_file)
+            
         except Exception as e:
+            if os.path.exists(output_file):
+                os.remove(output_file)
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to download paper: {str(e)}"
