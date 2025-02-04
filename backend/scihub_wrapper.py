@@ -10,7 +10,6 @@ import aiohttp
 from datetime import datetime, timedelta
 from urllib.parse import urljoin, urlparse
 from functools import lru_cache
-from scholarly import scholarly
 
 SCIHUB_URLS = [
     'https://sci-hub.ru',     # Primary mirror
@@ -143,30 +142,6 @@ class SciHubWrapper:
 
         return None
 
-    def _search_paper_by_title(self, title):
-        """Search for a paper by title and return its DOI."""
-        try:
-            # Search for the paper
-            search_query = scholarly.search_pubs(title)
-            paper = next(search_query)  # Get the first result
-            
-            # Extract DOI from the paper info
-            if 'pub_url' in paper and paper['pub_url']:
-                doi_match = re.search(r'10\.\d{4,}/[-._;()/:A-Za-z0-9]+', paper['pub_url'])
-                if doi_match:
-                    return doi_match.group(0)
-            
-            # Try to get DOI from other fields if available
-            if 'doi' in paper and paper['doi']:
-                return paper['doi']
-                
-            raise Exception(f"Could not find DOI for paper: {title}")
-            
-        except StopIteration:
-            raise Exception(f"No results found for paper: {title}")
-        except Exception as e:
-            raise Exception(f"Error searching for paper: {str(e)}")
-
     def _normalize_url(self, url, base_url):
         """Normalize URL to absolute form."""
         if not url:
@@ -179,25 +154,21 @@ class SciHubWrapper:
         return url
 
     def download(self, identifier, output_path):
-        """Download paper by DOI or title."""
         base_url = self._get_working_url()
         
         # Clean DOI if it looks like one
         if re.match(r'^(?:(?:DOI:?\s*)?10\.\d{4,})', identifier):
             identifier = self._clean_doi(identifier)
-            logging.info(f"Cleaned DOI: {identifier}")
+            paper_url = f"{base_url}/{identifier}"
+            logging.info(f"Searching by DOI: {identifier}")
         else:
-            # Try to find DOI by title
-            try:
-                identifier = self._search_paper_by_title(identifier)
-                logging.info(f"Found DOI for title: {identifier}")
-            except Exception as e:
-                logging.warning(f"Failed to find DOI by title: {str(e)}")
-                # Continue with the original identifier as fallback
+            # Use direct title search on Sci-Hub
+            query = identifier.replace(' ', '+')  # URL-encode spaces
+            paper_url = f"{base_url}/s/{query}"
+            logging.info(f"Searching by title: {identifier}")
         
         
-        # Try direct DOI download
-        paper_url = f"{base_url}/{identifier}"
+        logging.info(f"Accessing URL: {paper_url}")
         logging.info(f"Fetching paper page: {paper_url}")
         
         try:
