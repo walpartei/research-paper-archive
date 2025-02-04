@@ -8,6 +8,7 @@ import re
 from .scihub_wrapper import SciHubWrapper
 
 app = FastAPI()
+wrapper = SciHubWrapper()
 
 # Enable CORS for the frontend
 # Get the Vercel URL from environment or default to localhost
@@ -30,6 +31,18 @@ def is_doi(query: str) -> bool:
     """Check if the query looks like a DOI."""
     doi_pattern = r'^(?:(?:10\.\d{4,})|(?:DOI:?\s*)?\s*(10\.\d{4,}))/[-._;()/:A-Za-z0-9]+$'
     return bool(re.match(doi_pattern, query, re.IGNORECASE))
+
+@app.get("/api/mirrors")
+async def check_mirrors():
+    """Check status of all Sci-Hub mirrors."""
+    try:
+        results = wrapper.check_mirrors()
+        return {"mirrors": results}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to check mirrors: {str(e)}"
+        )
 
 @app.post("/api/download")
 async def download_paper(request: SearchRequest):

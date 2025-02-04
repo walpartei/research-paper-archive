@@ -4,15 +4,19 @@ from bs4 import BeautifulSoup
 import tempfile
 import os
 import logging
+import time
 from urllib.parse import urljoin, urlparse
 
 SCIHUB_URLS = [
-    'https://sci-hub.se',
-    'https://sci-hub.st',
-    'https://sci-hub.ru',
+    'https://sci-hub.ru',     # Primary mirror
+    'https://sci-hub.se',     # Secondary mirror
+    'https://sci-hub.st',     # Tertiary mirror
+    'https://sci.hub.yt',     # Alternative mirrors
     'https://sci-hub.ee',
     'https://sci-hub.wf',
     'https://sci-hub.ren',
+    'https://sci-hub.cat',
+    'https://sci-hub.it.nf',
 ]
 
 logging.basicConfig(level=logging.INFO)
@@ -23,6 +27,32 @@ class SciHubWrapper:
         self.sess.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
+        
+    def check_mirrors(self):
+        """Check all mirrors and return their status."""
+        results = []
+        for url in SCIHUB_URLS:
+            try:
+                start_time = time.time()
+                response = self.sess.get(url, timeout=5)
+                elapsed = time.time() - start_time
+                
+                status = {
+                    'url': url,
+                    'status': response.status_code,
+                    'working': response.status_code == 200,
+                    'response_time': round(elapsed * 1000, 2)  # in milliseconds
+                }
+            except Exception as e:
+                status = {
+                    'url': url,
+                    'status': 0,
+                    'working': False,
+                    'error': str(e)
+                }
+            results.append(status)
+            logging.info(f"Mirror {url}: {'✓' if status.get('working') else '✗'} - {status.get('response_time', 'N/A')}ms")
+        return results
 
     def _get_working_url(self):
         """Try different Sci-Hub URLs to find a working one."""
