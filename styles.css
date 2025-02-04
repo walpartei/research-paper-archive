@@ -39,31 +39,9 @@ h2 {
 
 .search-container {
     display: flex;
-    flex-direction: column;
     gap: 1rem;
     max-width: 600px;
     margin: 0 auto;
-}
-
-.search-input-group {
-    display: flex;
-    gap: 0.5rem;
-    width: 100%;
-}
-
-select {
-    padding: 1rem;
-    font-size: 1rem;
-    border: 2px solid #e2e8f0;
-    border-radius: 0.5rem;
-    outline: none;
-    background-color: white;
-    transition: border-color 0.2s ease;
-    cursor: pointer;
-}
-
-select:focus {
-    border-color: var(--primary-color);
 }
 
 input[type="text"] {
