@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.py",
+      "src": "api/*.py",
       "use": "@vercel/python"
     },
     {
@@ -20,8 +20,14 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "api/index.py"
+      "src": "/api/download",
+      "methods": ["POST"],
+      "dest": "api/download.py"
+    },
+    {
+      "src": "/api/mirrors",
+      "methods": ["GET"],
+      "dest": "api/mirrors.py"
     },
     {
       "src": "/(.*)",
