@@ -95,20 +95,6 @@ class SciHubWrapper:
         """Synchronous wrapper for check_mirrors_async."""
         return asyncio.run(self.check_mirrors_async())
 
-    def _get_working_url(self):
-        """Try different Sci-Hub URLs to find a working one."""
-        errors = []
-        for url in SCIHUB_URLS:
-            try:
-                response = self.sess.get(url, timeout=5)
-                if response.status_code == 200:
-                    logging.info(f"Using Sci-Hub mirror: {url}")
-                    return url
-            except Exception as e:
-                errors.append(f"{url}: {str(e)}")
-                continue
-        raise Exception(f"No working Sci-Hub URL found. Tried: {', '.join(errors)}")
-
     def _clean_doi(self, doi):
         """Clean DOI string."""
         match = re.search(r'10\.\d{4,}/[-._;()/:A-Za-z0-9]+', doi)
@@ -154,60 +140,68 @@ class SciHubWrapper:
         return url
 
     def download(self, identifier, output_path):
-        base_url = self._get_working_url()
-        
-        # Clean DOI if it looks like one
-        if re.match(r'^(?:(?:DOI:?\s*)?10\.\d{4,})', identifier):
-            identifier = self._clean_doi(identifier)
-            paper_url = f"{base_url}/{identifier}"
-            logging.info(f"Searching by DOI: {identifier}")
-        else:
-            # Use direct title search on Sci-Hub
-            query = identifier.replace(' ', '+')  # URL-encode spaces
-            paper_url = f"{base_url}/s/{query}"
-            logging.info(f"Searching by title: {identifier}")
-        
-        
-        logging.info(f"Accessing URL: {paper_url}")
-        logging.info(f"Fetching paper page: {paper_url}")
-        
-        try:
-            response = self.sess.get(paper_url, timeout=10)
-            response.raise_for_status()
-        except Exception as e:
-            raise Exception(f"Failed to access paper page: {str(e)}")
-
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Find PDF link
-        pdf_link = self._find_pdf_link(soup, base_url)
-        if not pdf_link:
-            # Try to extract error message if present
-            error_msg = soup.find('p', class_='error') or soup.find('div', class_='error')
-            if error_msg:
-                raise Exception(f"Sci-Hub error: {error_msg.text.strip()}")
-            raise Exception("No PDF link found in the page")
-
-        # Normalize PDF URL
-        pdf_link = self._normalize_url(pdf_link, base_url)
-        logging.info(f"Found PDF link: {pdf_link}")
-
-        # Download PDF
-        try:
-            pdf_response = self.sess.get(pdf_link, timeout=30)
-            pdf_response.raise_for_status()
-            
-            # Verify it's actually a PDF
-            content_type = pdf_response.headers.get('content-type', '')
-            if 'application/pdf' not in content_type.lower():
-                raise Exception(f"Invalid content type: {content_type}")
+        # Try each mirror until one works
+        last_error = None
+        for base_url in SCIHUB_URLS:
+            try:
+                # Clean DOI if it looks like one
+                if re.match(r'^(?:(?:DOI:?\s*)?10\.\d{4,})', identifier):
+                    identifier = self._clean_doi(identifier)
+                    paper_url = f"{base_url}/{identifier}"
+                    logging.info(f"Searching by DOI: {identifier}")
+                else:
+                    # Use direct title search on Sci-Hub
+                    query = identifier.replace(' ', '+')  # URL-encode spaces
+                    paper_url = f"{base_url}/s/{query}"
+                    logging.info(f"Searching by title: {identifier}")
                 
-        except Exception as e:
-            raise Exception(f"Failed to download PDF: {str(e)}")
+                logging.info(f"Trying mirror {base_url}...")
+                logging.info(f"Accessing URL: {paper_url}")
+                
+                response = self.sess.get(paper_url, timeout=10)
+                response.raise_for_status()
+                
+                # If we get here, try to find and download the PDF
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Find PDF link
+                pdf_link = self._find_pdf_link(soup, base_url)
+                if not pdf_link:
+                    # Try next mirror if no PDF found
+                    logging.warning(f"No PDF link found on {base_url}")
+                    continue
 
-        # Save PDF
-        with open(output_path, 'wb') as f:
-            f.write(pdf_response.content)
-            
-        logging.info(f"Successfully downloaded PDF to {output_path}")
-        return True
+                # Normalize PDF URL
+                pdf_link = self._normalize_url(pdf_link, base_url)
+                logging.info(f"Found PDF link: {pdf_link}")
+
+                # Download PDF
+                try:
+                    pdf_response = self.sess.get(pdf_link, timeout=30)
+                    pdf_response.raise_for_status()
+                    
+                    # Verify it's actually a PDF
+                    content_type = pdf_response.headers.get('content-type', '')
+                    if 'application/pdf' not in content_type.lower():
+                        raise Exception(f"Invalid content type: {content_type}")
+                        
+                    # Save PDF
+                    with open(output_path, 'wb') as f:
+                        f.write(pdf_response.content)
+                        
+                    logging.info(f"Successfully downloaded PDF to {output_path}")
+                    return True
+                    
+                except Exception as e:
+                    # Try next mirror if PDF download fails
+                    logging.warning(f"Failed to download PDF from {base_url}: {str(e)}")
+                    continue
+                    
+            except Exception as e:
+                last_error = e
+                logging.warning(f"Mirror {base_url} failed: {str(e)}")
+                continue
+        
+        # If we've tried all mirrors and none worked
+        if last_error:
+            raise Exception(f"All mirrors failed. Last error: {str(last_error)}")
