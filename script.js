@@ -7,12 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loading.classList.remove('hidden');
         
         try {
-            // Get the API URL based on the environment
-            const apiUrl = window.location.hostname === 'localhost' 
-                ? 'http://localhost:8001/api/download'
-                : '/api/download';
-            
-            const response = await fetch(apiUrl, {
+            const response = await fetch('/api/download', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
