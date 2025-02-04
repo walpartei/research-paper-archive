@@ -4,15 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const showBtn = document.getElementById('show-btn');
     const loading = document.getElementById('loading');
     const pdfContainer = document.getElementById('pdf-container');
-    const pdfCanvas = document.getElementById('pdf-canvas');
-    const prevButton = document.getElementById('prev-page');
-    const nextButton = document.getElementById('next-page');
+    const pdfPages = document.getElementById('pdf-pages');
     const closeButton = document.getElementById('close-pdf');
-    const pageNum = document.getElementById('page-num');
-    const pageCount = document.getElementById('page-count');
 
     let pdfDoc = null;
-    let pageNum_ = 1;
     const scale = 1.5;
 
     async function fetchPaper() {
@@ -71,11 +66,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Load PDF using PDF.js
             pdfDoc = await pdfjsLib.getDocument(url).promise;
-            pageCount.textContent = pdfDoc.numPages;
             
-            // Show PDF container and render first page
+            // Clear previous pages
+            pdfPages.innerHTML = '';
+            
+            // Show PDF container
             pdfContainer.classList.remove('hidden');
-            renderPage(1);
+            
+            // Render all pages
+            for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                await renderPage(pageNum);
+            }
 
             window.URL.revokeObjectURL(url);
 
@@ -86,48 +87,55 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function renderPage(num) {
-        if (!pdfDoc || num < 1 || num > pdfDoc.numPages) return;
-
-        pageNum_ = num;
-        pageNum.textContent = pageNum_;
-
+    async function renderPage(pageNum) {
         try {
-            const page = await pdfDoc.getPage(pageNum_);
+            const page = await pdfDoc.getPage(pageNum);
             const viewport = page.getViewport({ scale });
 
-            // Set canvas dimensions
-            pdfCanvas.height = viewport.height;
-            pdfCanvas.width = viewport.width;
+            // Create page container
+            const pageContainer = document.createElement('div');
+            pageContainer.className = 'pdf-page';
+            
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            // Add page number
+            const pageLabel = document.createElement('div');
+            pageLabel.className = 'page-number';
+            pageLabel.textContent = `Page ${pageNum} of ${pdfDoc.numPages}`;
+
+            // Add to container
+            pageContainer.appendChild(canvas);
+            pageContainer.appendChild(pageLabel);
+            pdfPages.appendChild(pageContainer);
 
             const renderContext = {
-                canvasContext: pdfCanvas.getContext('2d'),
+                canvasContext: canvas.getContext('2d'),
                 viewport: viewport
             };
 
             await page.render(renderContext).promise;
 
-            // Update button states
-            prevButton.disabled = pageNum_ <= 1;
-            nextButton.disabled = pageNum_ >= pdfDoc.numPages;
-
         } catch (error) {
-            console.error('Error rendering PDF page:', error);
-            alert('Error rendering PDF page');
+            console.error(`Error rendering page ${pageNum}:`, error);
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'pdf-page error';
+            errorDiv.textContent = `Error loading page ${pageNum}`;
+            pdfPages.appendChild(errorDiv);
         }
     }
 
     function closePdfViewer() {
         pdfContainer.classList.add('hidden');
+        pdfPages.innerHTML = '';
         pdfDoc = null;
-        pageNum_ = 1;
     }
 
     // Event Listeners
     downloadBtn.addEventListener('click', downloadPaper);
     showBtn.addEventListener('click', showPaper);
-    prevButton.addEventListener('click', () => renderPage(pageNum_ - 1));
-    nextButton.addEventListener('click', () => renderPage(pageNum_ + 1));
     closeButton.addEventListener('click', closePdfViewer);
     
     searchInput.addEventListener('keypress', (e) => {
