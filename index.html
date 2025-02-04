@@ -18,7 +18,14 @@
         <h2>Deep Research, you are welcome!</h2>
         
         <div class="search-container">
-            <input type="text" id="search-input" placeholder="Enter DOI ..." aria-label="Search for papers">
+            <div class="search-input-group">
+                <select id="search-type" aria-label="Search type">
+                    <option value="doi">DOI</option>
+                    <option value="pmid">PMID</option>
+                    <option value="title">Title</option>
+                </select>
+                <input type="text" id="search-input" placeholder="Enter identifier..." aria-label="Search for papers">
+            </div>
             <div class="button-group">
                 <button id="download-btn">Download PDF</button>
                 <button id="show-btn">Show PDF</button>

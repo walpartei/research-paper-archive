@@ -1,11 +1,31 @@
 document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('search-input');
+    const searchType = document.getElementById('search-type');
     const downloadBtn = document.getElementById('download-btn');
     const showBtn = document.getElementById('show-btn');
     const loading = document.getElementById('loading');
     const pdfContainer = document.getElementById('pdf-container');
     const pdfPages = document.getElementById('pdf-pages');
     const closeButton = document.getElementById('close-pdf');
+
+    // Update placeholder based on search type
+    function updatePlaceholder() {
+        const type = searchType.value;
+        switch (type) {
+            case 'doi':
+                searchInput.placeholder = 'Enter DOI (e.g., 10.1234/example)';
+                break;
+            case 'pmid':
+                searchInput.placeholder = 'Enter PMID (e.g., 19346325)';
+                break;
+            case 'title':
+                searchInput.placeholder = 'Enter paper title';
+                break;
+        }
+    }
+
+    // Set initial placeholder
+    updatePlaceholder();
 
     let pdfDoc = null;
     const scale = 1.5;
@@ -25,12 +45,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchPaper() {
         const query = searchInput.value.trim();
+        const type = searchType.value;
+        
         if (!query) {
-            throw new Error('Please enter a DOI or paper title');
+            throw new Error(`Please enter a ${type.toUpperCase()}`);
         }
 
-        // Normalize DOI if it looks like a DOI
-        const normalizedQuery = query.match(/\b(10\.\d{4,}\/.+)\b/) 
+        // Normalize DOI if it's a DOI search
+        const normalizedQuery = type === 'doi' && query.match(/\b(10\.\d{4,}\/.+)\b/) 
             ? normalizeDoi(query)
             : query;
 
@@ -39,7 +61,10 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ query: normalizedQuery })
+            body: JSON.stringify({ 
+                query: normalizedQuery,
+                type: searchType.value
+            })
         });
 
         if (!response.ok) {
@@ -155,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
     downloadBtn.addEventListener('click', downloadPaper);
     showBtn.addEventListener('click', showPaper);
     closeButton.addEventListener('click', closePdfViewer);
+    searchType.addEventListener('change', updatePlaceholder);
     
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
