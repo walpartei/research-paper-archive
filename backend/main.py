@@ -28,8 +28,8 @@ class SearchRequest(BaseModel):
 
 def is_doi(query: str) -> bool:
     """Check if the query looks like a DOI."""
-    doi_pattern = r'(10\.\d{4,}/[-._;()/:\w]+)'
-    return bool(re.match(doi_pattern, query))
+    doi_pattern = r'^(?:(?:10\.\d{4,})|(?:DOI:?\s*)?\s*(10\.\d{4,}))/[-._;()/:A-Za-z0-9]+$'
+    return bool(re.match(doi_pattern, query, re.IGNORECASE))
 
 @app.post("/api/download")
 async def download_paper(request: SearchRequest):
@@ -43,12 +43,22 @@ async def download_paper(request: SearchRequest):
         # Determine if the query is a DOI or title
         paper_type = "doi" if is_doi(query) else "title"
         
-        # Download the paper
-        scihub_download(
-            paper=query,
-            paper_type=paper_type,
-            out=output_file
-        )
+        try:
+            # Clean DOI if present
+            if paper_type == 'doi':
+                query = re.sub(r'^(?:DOI:?\s*)?(.+)$', r'\1', query)
+
+            # Download the paper
+            scihub_download(
+                paper=query,
+                paper_type=paper_type,
+                out=output_file
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to download paper: {str(e)}"
+            )
         
         # Check if file was downloaded successfully
         if not os.path.exists(output_file):
