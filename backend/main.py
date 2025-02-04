@@ -5,7 +5,7 @@ from pydantic import BaseModel
 import tempfile
 import os
 import re
-from scihub_wrapper import SciHubWrapper
+from .scihub_wrapper import SciHubWrapper
 
 app = FastAPI()
 
