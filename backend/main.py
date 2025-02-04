@@ -10,16 +10,24 @@ import re
 app = FastAPI()
 
 # Enable CORS for the frontend
-# Get the Vercel URL from environment or default to localhost
-FRONTEND_URL = os.getenv('VERCEL_URL', 'http://localhost:3000')
-if FRONTEND_URL.startswith('http://') is False and FRONTEND_URL.startswith('https://') is False:
-    FRONTEND_URL = f'https://{FRONTEND_URL}'
+# Configure CORS for both local development and production
+origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+]
+
+# Add Vercel URL if available
+vercel_url = os.getenv('VERCEL_URL')
+if vercel_url:
+    origins.append(f"https://{vercel_url}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -49,11 +57,7 @@ async def download_paper(request: SearchRequest):
                 query = re.sub(r'^(?:DOI:?\s*)?(.+)$', r'\1', query)
 
             # Download the paper
-            scihub_download(
-                paper=query,
-                paper_type=paper_type,
-                out=output_file
-            )
+            scihub_download(query, paper_type=paper_type, out=output_file)
         except Exception as e:
             raise HTTPException(
                 status_code=500,
