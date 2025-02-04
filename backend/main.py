@@ -10,9 +10,14 @@ import re
 app = FastAPI()
 
 # Enable CORS for the frontend
+# Get the Vercel URL from environment or default to localhost
+FRONTEND_URL = os.getenv('VERCEL_URL', 'http://localhost:3000')
+if FRONTEND_URL.startswith('http://') is False and FRONTEND_URL.startswith('https://') is False:
+    FRONTEND_URL = f'https://{FRONTEND_URL}'
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with your frontend domain
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
