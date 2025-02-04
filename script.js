@@ -10,18 +10,36 @@ document.addEventListener('DOMContentLoaded', () => {
     let pdfDoc = null;
     const scale = 1.5;
 
+    function normalizeDoi(input) {
+        // Remove any whitespace
+        let doi = input.trim();
+        
+        // Remove various DOI prefixes
+        doi = doi.replace(/^(?:doi:|DOI:)/i, '');
+        
+        // Remove URL prefixes
+        doi = doi.replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, '');
+        
+        return doi;
+    }
+
     async function fetchPaper() {
         const query = searchInput.value.trim();
         if (!query) {
             throw new Error('Please enter a DOI or paper title');
         }
 
+        // Normalize DOI if it looks like a DOI
+        const normalizedQuery = query.match(/\b(10\.\d{4,}\/.+)\b/) 
+            ? normalizeDoi(query)
+            : query;
+
         const response = await fetch('/api/download', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ query })
+            body: JSON.stringify({ query: normalizedQuery })
         });
 
         if (!response.ok) {
