@@ -30,6 +30,10 @@
       "dest": "api/mirrors.py"
     },
     {
+      "src": "/{doi:path}",
+      "dest": "api/download.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "/$1"
     }
