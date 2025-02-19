@@ -105,16 +105,13 @@ async def download_paper(request: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-from urllib.parse import quote
-
-@app.get("/{doi:path}")
+@app.get("/download")
 def download_with_doi(doi: str):
-    """Download paper directly using DOI from URL."""
+    """Download paper directly using DOI as a query parameter."""
     if is_doi(doi):
         try:
-            encoded_doi = quote(doi, safe="")
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                wrapper.download(encoded_doi, tmp_file.name)
+                wrapper.download(doi, tmp_file.name)
             return StreamingResponse(open(tmp_file.name, "rb"), media_type="application/pdf")
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
