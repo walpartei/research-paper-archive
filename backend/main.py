@@ -103,3 +103,15 @@ async def download_paper(request: SearchRequest):
         if os.path.exists(temp_dir):
             os.rmdir(temp_dir)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/{doi:path}")
+def download_with_doi(doi: str):
+    """Download paper directly using DOI from URL."""
+    if is_doi(doi):
+        try:
+            return wrapper.download_by_doi(doi)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    else:
+        raise HTTPException(status_code=400, detail="Invalid DOI format.")
