@@ -7,6 +7,7 @@ import tempfile
 import os
 import re
 from .scihub_wrapper import SciHubWrapper
+import logging
 
 app = FastAPI()
 wrapper = SciHubWrapper()
@@ -30,8 +31,11 @@ class SearchRequest(BaseModel):
 
 def is_doi(query: str) -> bool:
     """Check if the query looks like a DOI."""
+    logging.info(f"Checking DOI format for: {query}")
     doi_pattern = r'^(?:(?:10\.\d{4,})|(?:DOI:?\s*)?\s*(10\.\d{4,}))/[-._;()/:A-Za-z0-9]+$'
-    return bool(re.match(doi_pattern, query, re.IGNORECASE))
+    result = bool(re.match(doi_pattern, query, re.IGNORECASE))
+    logging.info(f"DOI format valid for '{query}': {result}")
+    return result
 
 @app.get("/api/mirrors")
 async def check_mirrors():
@@ -105,13 +109,18 @@ async def download_paper(request: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/download")
+import tempfile
+
+@app.get("/{doi:path}")
 def download_with_doi(doi: str):
-    """Download paper directly using DOI as a query parameter."""
+    """Download paper directly using DOI from URL."""
     if is_doi(doi):
         try:
+            # Use a temporary file to store the downloaded PDF
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                 wrapper.download(doi, tmp_file.name)
+
+            # Stream the PDF as a response
             return StreamingResponse(open(tmp_file.name, "rb"), media_type="application/pdf")
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
