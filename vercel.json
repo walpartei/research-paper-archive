@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "api/*.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 60
+      }
     },
     {
       "src": "*.html",
@@ -30,8 +33,20 @@
       "dest": "api/mirrors.py"
     },
     {
+      "src": "/(10\\.48550/arXiv\\.[0-9\\.]+)",
+      "dest": "api/index.py",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000",
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
       "src": "/(10\\.[0-9]+/.+)",
-      "dest": "api/index.py"
+      "dest": "api/index.py",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000",
+        "Access-Control-Allow-Origin": "*"
+      }
     },
     {
       "src": "/(.*)",
