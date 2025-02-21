@@ -111,6 +111,15 @@ async def download_paper(request: SearchRequest):
 
 import tempfile
 
+def generate_pdf_chunks(file_path, chunk_size=1024*1024):
+    """Generator function to yield PDF chunks."""
+    with open(file_path, 'rb') as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
+
 @app.get("/{doi:path}")
 def download_with_doi(doi: str):
     """Download paper directly using DOI from URL."""
@@ -120,8 +129,14 @@ def download_with_doi(doi: str):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                 wrapper.download(doi, tmp_file.name)
 
-            # Stream the PDF as a response
-            return StreamingResponse(open(tmp_file.name, "rb"), media_type="application/pdf")
+            # Stream the PDF in chunks
+            return StreamingResponse(
+                generate_pdf_chunks(tmp_file.name),
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f"inline; filename={doi.replace('/', '_')}.pdf"
+                }
+            )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     else:
