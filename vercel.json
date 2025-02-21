@@ -21,12 +21,6 @@
       "use": "@vercel/static"
     }
   ],
-  "functions": {
-    "api/*.py": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
-  },
   "routes": [
     {
       "src": "/api/download",
