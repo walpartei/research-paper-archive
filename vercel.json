@@ -30,8 +30,8 @@
       "dest": "api/mirrors.py"
     },
     {
-      "src": "/{doi:path}",
-      "dest": "api/download.py"
+      "src": "/(10\\.[0-9]+/.+)",
+      "dest": "api/index.py"
     },
     {
       "src": "/(.*)",
