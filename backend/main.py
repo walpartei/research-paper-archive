@@ -7,10 +7,12 @@ import tempfile
 import os
 import re
 from .scihub_wrapper import SciHubWrapper
+from .paper_search import PaperSearch
 import logging
 
 app = FastAPI()
 wrapper = SciHubWrapper()
+paper_search = PaperSearch()
 
 # Enable CORS for the frontend
 # Get the Vercel URL from environment or default to localhost
@@ -37,6 +39,13 @@ def is_doi(query: str) -> bool:
     logging.info(f"DOI format valid for '{query}': {result}")
     return result
 
+async def get_doi_from_title(title: str) -> str:
+    """Search for a paper by title and return its DOI."""
+    doi = paper_search.search_by_title(title)
+    if not doi:
+        raise HTTPException(status_code=404, detail=f"No paper found matching title: {title}")
+    return doi
+
 @app.get("/api/mirrors")
 async def check_mirrors():
     """Check status of all Sci-Hub mirrors."""
@@ -56,20 +65,22 @@ async def check_mirrors():
 @app.post("/api/download")
 async def download_paper(request: SearchRequest):
     query = request.query.strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Please provide a DOI or paper title")
     
     # Create a temporary file to store the PDF
     temp_dir = tempfile.mkdtemp()
     output_file = os.path.join(temp_dir, "paper.pdf")
     
     try:
-        # Determine if the query is a DOI or title
-        paper_type = "doi" if is_doi(query) else "title"
+        # If not a DOI, search by title first
+        if not is_doi(query):
+            logging.info(f"Searching for paper by title: {query}")
+            query = await get_doi_from_title(query)
+            logging.info(f"Found DOI for title: {query}")
         
         try:
-            # Initialize wrapper
-            wrapper = SciHubWrapper()
-            
-            # Download the paper
+            # Download the paper using the DOI
             wrapper.download(query, output_file)
             
         except Exception as e:

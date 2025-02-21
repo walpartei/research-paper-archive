@@ -34,6 +34,13 @@ document.addEventListener('DOMContentLoaded', () => {
             ? normalizeDoi(query)
             : query;
 
+        // Show loading state with appropriate message
+        const isDOI = Boolean(query.match(/\b10\.\d{4,}\/.+\b/));
+        loading.querySelector('.spinner').setAttribute(
+            'data-tooltip',
+            isDOI ? 'Downloading paper...' : 'Searching for paper...'
+        );
+
         const response = await fetch('/api/download', {
             method: 'POST',
             headers: {
@@ -44,7 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to download paper');
+            throw new Error(
+                error.detail || 
+                (isDOI ? 'Failed to download paper' : 'No matching paper found')
+            );
         }
 
         return response;
