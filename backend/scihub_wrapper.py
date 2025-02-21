@@ -153,8 +153,29 @@ class SciHubWrapper:
             return urljoin(base_url, url)
         return url
 
+    def _handle_arxiv_doi(self, doi):
+        """Handle arXiv DOIs by converting them to direct PDF links."""
+        arxiv_match = re.search(r'10\.48550/arXiv\.(\d+\.\d+)', doi)
+        if arxiv_match:
+            arxiv_id = arxiv_match.group(1)
+            return f'https://arxiv.org/pdf/{arxiv_id}.pdf'
+        return None
+
     def download(self, identifier, output_path):
         """Download paper by DOI or title."""
+        # Check for arXiv DOI first
+        if identifier.startswith('10.48550/arXiv.'):
+            pdf_url = self._handle_arxiv_doi(identifier)
+            if pdf_url:
+                try:
+                    pdf_response = self.sess.get(pdf_url, timeout=30)
+                    pdf_response.raise_for_status()
+                    with open(output_path, 'wb') as f:
+                        f.write(pdf_response.content)
+                    return
+                except Exception as e:
+                    raise Exception(f'Failed to download arXiv PDF: {str(e)}')
+
         base_url = self._get_working_url()
         
         # Clean DOI if it looks like one
